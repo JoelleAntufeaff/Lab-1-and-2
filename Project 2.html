@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Project</title>
+  <link href="style.css" type="text/css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+  <div class="container">
+    <div class="top">MaPals</div>
+    <div class="main">
+      <h2>Choose a location to get started</h2>
+      <button onclick="togglePals()">Show My Pals</button>
+      <button onclick="toggleProfile()">Show/Hide Profile</button>
+      <button onclick="resetData()">Reset Pins and Profile</button>
+      <div id="map"></div>
+      <p> I would use an array of JSON objects for your saved pals, which would hold their name, phone number, profile picture, last dropped pin, etc..., here is a drawing: </p>
+      <a href="https://yourimageshare.com/ib/fObaV1UWsJ"><img src="https://yourimageshare.com/ib/fObaV1UWsJ.webp" title="Image - fObaV1UWsJ - yourimageshare.com" alt="Image - fObaV1UWsJ - yourimageshare.com" width="50%"></a><center><a target="_blank" href="https://yourimageshare.com"><small>Image hosting</small></a></center> 
+    </div>
+    
+    <div class="beside right">
+      <h2>Pals</h2>
+      <div id="palsContainer"></div>
+    </div>
+
+    <div class="footer">
+      <h2>Create Profile</h2>
+      <form id="profileForm" onsubmit="saveProfile(event)">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br><br>
+        <label for="phone">Phone Number:</label>
+        <input type="tel" id="phone" name="phone" required><br><br>
+        <label for="image">Profile Image:</label>
+        <input type="file" id="image" name="image" accept="image/*" required><br><br>
+        <input type="submit" value="Save Profile">
+      </form>
+    </div>
+    <div id="profileSection"></div>
+  </div>
+
+  <script>
+    let map;
+    let markers = [];
+
+    function togglePals() {
+      var palsElement = document.querySelector(".beside.right");
+      palsElement.style.display = palsElement.style.display === "none" ? "block" : "none";
+    }
+
+    function toggleProfile() {
+      var profileElement = document.getElementById("profileSection");
+      profileElement.style.display = profileElement.style.display === "none" ? "block" : "none";
+    }
+
+    function resetData() {
+      localStorage.removeItem("markers");
+      localStorage.removeItem("profile");
+      location.reload();
+    }
+
+    const addLocationToMap = ({ coords, name, message }) => {
+      const marker = L.marker(coords).addTo(map);
+      let popover = `${name} was here!`;
+
+      if (message) popover += ` And they said: ${message}`;
+      marker.bindPopup(popover);
+
+      markers.push({ coords, name, message });
+    };
+
+    const saveMarkers = () => {
+      localStorage.setItem("markers", JSON.stringify(markers));
+    };
+
+    const loadMarkers = () => {
+      const storedMarkers = localStorage.getItem("markers");
+      if (storedMarkers) {
+        const parsedMarkers = JSON.parse(storedMarkers);
+        parsedMarkers.forEach(marker => {
+          addLocationToMap(marker);
+        });
+        markers = parsedMarkers;
+      }
+    };
+
+    function saveProfile(event) {
+      event.preventDefault();
+      const name = document.getElementById("name").value;
+      const phone = document.getElementById("phone").value;
+      const image = document.getElementById("image").files[0];
+
+      const profileData = {
+        name,
+        phone,
+        image: URL.createObjectURL(image),
+      };
+
+      localStorage.setItem("profile", JSON.stringify(profileData));
+
+      displayProfile(profileData);
+    }
+
+    function loadProfile() {
+      const profileData = localStorage.getItem("profile");
+      if (profileData) {
+        const parsedData = JSON.parse(profileData);
+        displayProfile(parsedData);
+      }
+    }
+
+    function displayProfile(profileData) {
+      const profileSection = document.getElementById("profileSection");
+      profileSection.innerHTML = `
+        <h2>${profileData.name}'s Profile</h2>
+        <img src="${profileData.image}" width="200px" />
+        <p>Name: ${profileData.name}</p>
+        <p>Phone: ${profileData.phone}</p>
+      `;
+      profileSection.style.display = "block";
+    }
+
+    function initMap() {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(position => {
+          map = L.map("map").setView([position.coords.latitude, position.coords.longitude], 13);
+          initializeMap();
+        });
+      } else {
+        map = L.map("map").setView([51.505, -0.09], 13);
+        initializeMap();
+      }
+    }
+
+    function initializeMap() {
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "Map data © <a href='https://openstreetmap.org'>OpenStreetMap</a> contributors",
+      }).addTo(map);
+
+      map.on("click", e => {
+        const name = prompt("Enter your name:");
+        const message = prompt("Enter a message:");
+        addLocationToMap({ coords: e.latlng, name, message });
+        saveMarkers();
+      });
+
+      loadMarkers();
+      loadProfile();
+    }
+
+    document.addEventListener("DOMContentLoaded", initMap);
+  </script>
+</body>
+</html>
